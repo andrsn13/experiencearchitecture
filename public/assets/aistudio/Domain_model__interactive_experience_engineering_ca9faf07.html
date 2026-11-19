@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Domain model: interactive experience engineering</title>
+<style>
+:root{--bg:#faf9f6;--fg:#1d1d1b;--mut:#6b6a66;--line:#d8d5cc;--card:#fff;--c1:#7c3aed;--c2:#0369a1;--c3:#15803d;--c4:#b45309;--c5:#be123c;--c6:#475569;--acc:#c2410c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#161614;--fg:#ecebe6;--mut:#9a988f;--line:#34332f;--card:#211f1c;--c1:#a78bfa;--c2:#38bdf8;--c3:#4ade80;--c4:#fbbf24;--c5:#fb7185;--c6:#94a3b8;--acc:#fb923c}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#161614;--fg:#ecebe6;--mut:#9a988f;--line:#34332f;--card:#211f1c;--c1:#a78bfa;--c2:#38bdf8;--c3:#4ade80;--c4:#fbbf24;--c5:#fb7185;--c6:#94a3b8;--acc:#fb923c}
+*{box-sizing:border-box}html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+header{padding:18px 20px 0}h1{font:600 21px/1.2 Georgia,"Times New Roman",serif;margin:0 0 4px}
+.sub{color:var(--mut);margin:0;font-size:13px}
+nav{display:flex;gap:4px;overflow-x:auto;padding:14px 20px 0;border-bottom:1px solid var(--line)}
+nav button{font:inherit;font-size:14px;background:none;border:0;border-bottom:3px solid transparent;padding:8px 12px;color:var(--mut);cursor:pointer;white-space:nowrap}
+nav button[aria-pressed=true]{color:var(--fg);border-color:var(--acc);font-weight:600}
+main{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:22px;padding:18px 20px 30px;max-width:1180px;margin:auto}
+@media(max-width:820px){main{grid-template-columns:1fr}}
+h2{font:600 15px/1.3 system-ui;margin:18px 0 6px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}h2:first-child{margin-top:0}
+.big{font:500 19px/1.4 Georgia,serif;margin:0 0 12px}.note{color:var(--mut);font-size:13px;margin:8px 0}
+table{border-collapse:collapse;width:100%}td{border-top:1px solid var(--line);padding:8px 6px;vertical-align:top}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+section h3{font:600 12px system-ui;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0 0 6px}
+.chip{display:block;width:100%;text-align:left;font:inherit;background:var(--card);color:var(--fg);border:1px solid var(--line);border-left:5px solid var(--k);border-radius:8px;padding:7px 10px;margin-bottom:6px;cursor:pointer}
+.chip small{display:block;color:var(--mut);font-size:11.5px}.chip.on{outline:2px solid var(--fg)}
+.btn{font:inherit;font-size:13px;background:var(--card);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;margin:0 6px 6px 0}.btn.on{border-color:var(--acc);font-weight:600}
+.sv{overflow-x:auto;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+svg{display:block;width:100%;min-width:660px;height:auto}svg text{font:12.5px system-ui;fill:var(--fg)}
+.nd{cursor:pointer}.nd rect{fill:var(--card);stroke-width:1.5}.nd.on rect{stroke-width:3.5}
+.dead rect{fill:none;stroke:var(--c5)!important;stroke-dasharray:3}.dead text{text-decoration:line-through;fill:var(--mut)}
+svg .w{font-size:10px;fill:var(--mut);text-anchor:end}svg .el{font-size:11px;paint-order:stroke;stroke:var(--card);stroke-width:4px}
+.pn{border:1px solid var(--line);border-radius:10px;padding:14px;background:var(--card);align-self:start;position:sticky;top:12px}
+.pn h3{margin:0 0 6px;font:600 17px Georgia,serif}.bd{display:inline-block;font-size:11px;border:1px solid var(--k);color:var(--k);border-radius:99px;padding:0 8px;margin:0 4px 6px 0}
+.pn ul{margin:2px 0 8px;padding-left:18px;font-size:13px}.pn h4{margin:10px 0 2px;font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--mut)}
+.lg{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--mut);margin-top:10px}.lg i{display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--k);margin-right:5px}
+.cl{border:1px solid var(--line);border-radius:10px;background:var(--card);padding:10px 12px;margin-bottom:10px}
+.v{font-size:11px;font-weight:700;border-radius:4px;padding:1px 7px;color:#fff;margin-right:6px}.cl p{margin:4px 0 6px}
+.nest{margin-top:10px;font-size:13px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+</style></head><body>
+<header><h1>Interactive experience engineering: a domain model</h1>
+<p class="sub">One dataset of 14 parts, seen through four lenses (composition, kind, boundary, cause), then an order of learning and an audit of your draft.</p></header>
+<nav id="nav"></nav>
+<main><div id="v"></div><aside class="pn" id="p"></aside></main>
+<script>
+const ST=['Intent','Content','Form','Substrate','Constraint','Outcome'],COL={Intent:'--c1',Content:'--c4',Form:'--c2',Substrate:'--c3',Constraint:'--c5',Outcome:'--c6'};
+// name, stratum, modality, status vs your draft, definition, x, y
+const N={
+intent:['Intent & narrative','Intent','Meaning','Moved in','Why the artifact exists and what a person should feel or understand. Every form decision is derived from it.',70,150],
+content:['Content','Content','Matter','Moved in','Copy, photography, 3D models, recorded audio: the raw matter the forms shape. Your draft placed it outside the parts; it is one.',70,330],
+ixd:['Interaction design','Form','Cognition','Kept','How a person understands, navigates and acts: information architecture, flows, feedback. The UX half.',270,50],
+vis:['Visual design','Form','Sight','Kept','Static spatial rules: grid, type, colour, composition, brand. The UI half.',270,130],
+mot:['Motion design','Form','Time','Kept','Change over time: pacing, easing, staging, continuity. A dimension that crosses the others, not a sealed discipline.',270,210],
+son:['Sonic design','Form','Hearing','Yours','Audio feedback and soundscape.',270,290],
+spa:['Spatial design','Form','Depth','Missing','Camera, depth, lighting, 3D scene composition: the design half of WebGL, separate from the math.',270,370],
+fe:['Front-end eng.','Substrate','Code','Reshaped','DOM, CSS, JavaScript, state, scroll, the rendering pipeline. Split out of your pillar 4.',490,90],
+gfx:['Graphics eng.','Substrate','Code','Reshaped','Canvas, WebGL, shaders, 3D math. A specialist branch, not a prerequisite for the whole domain.',490,210],
+xr:['Sensors & XR','Substrate','Body','Yours','Gyroscope, camera tracking, WebXR. Real but peripheral.',490,330],
+a11y:['Accessibility','Constraint','Any','Missing','Reduced motion, keyboard, contrast, semantics. A quality every part must have, not a part itself.',270,460],
+perf:['Performance','Constraint','Any','Missing','Frame budget, load time, memory. Bounds how much motion and graphics are possible.',490,460],
+exp:['Experience','Outcome','Perceiver','Missing','What a person actually feels and understands. This is what the whole system produces.',700,150],
+eval:['Evaluation','Outcome','Perceiver','Missing','Juries, analytics, user tests. A proxy measure of Experience, not the goal itself.',700,300]};
+const T=[['ixd','vis','u','layout, affordance'],['ixd','mot','u','feedback, transitions'],['vis','mot','u','kinetic type, staging'],['vis','fe','u','design tokens, CSS'],['ixd','fe','u','state, routing'],['mot','fe','u','easing, timelines'],['mot','gfx','u','time uniforms'],['spa','gfx','u','camera, scene graph'],['spa','xr','u','pose, depth'],['vis','spa','u','composition, lighting'],['son','mot','u','scroll and beat sync'],['son','fe','u','Web Audio API'],['content','vis','u','type, imagery'],['content','son','u','recorded audio'],['content','spa','u','3D assets'],['intent','ixd','u','goals, flows'],['intent','vis','u','brand, tone']];
+const C=[...['ixd','vis','mot','son','spa'].map(x=>['intent',x,'c']),['content','vis','c'],['content','son','c'],['content','spa','c'],['ixd','fe','c'],['vis','fe','c'],['mot','fe','c'],['mot','gfx','c'],['spa','gfx','c'],['spa','xr','c'],['son','fe','c'],['fe','exp','c'],['gfx','exp','c'],['xr','exp','c'],['exp','eval','c'],['eval','intent','f'],['a11y','ixd','k'],['a11y','vis','k'],['a11y','mot','k'],['perf','fe','k'],['perf','gfx','k']];
+const L=[['fe','mot','h'],['ixd','mot','h'],['vis','mot','s'],['fe','gfx','h'],['mot','gfx','s'],['gfx','spa','h'],['vis','spa','s'],['gfx','xr','h'],['spa','xr','h'],['fe','son','h'],['mot','son','s'],['fe','a11y','h'],['ixd','a11y','h'],['fe','perf','h'],['gfx','perf','s']];
+const hard=L.filter(e=>e[2]=='h'),W={};const wv=i=>W[i]??=Math.max(-1,...hard.filter(e=>e[1]==i).map(e=>wv(e[0])))+1;
+L.forEach(e=>{wv(e[0]);wv(e[1])});
+const AUD=[
+['Partly','“UI/UX is a proper part of the whole.”','True, but it is two parts: UX is Interaction, UI is Visual. And “utility versus experience” is a false split: Awwwards’ jury scores Usability explicitly, next to Design, Creativity and Content.',['ixd','vis']],
+['Wrong','“Four non-overlapping disciplines.”','They overlap on concrete boundary objects (easing curves, design tokens, feedback states; see Borders) and are different kinds of thing: a field (HCI), a static medium (Visual), a dimension (Time), a layer (Engineering).',['ixd','vis','mot','fe','gfx']],
+['Wrong','“These four are sufficient for execution.”','Missing for execution: Accessibility and Performance (constraints on every part), Content (you placed it outside), and Spatial design (the design half of WebGL, which pillar 4 lumps in with the math).',['a11y','perf','content','spa']],
+['Holds','“Without narrative it is an empty tech demo.”','Causal test: on Causes, ablate Intent. Everything still builds, nothing is directed. The strongest claim in the draft; promote it from “conception” to root cause.',['intent']],
+['Partly','“Add Sonic and WebXR to be exhaustive.”','Sonic: yes. XR and sensors: real but peripheral. Higher-value omissions: Accessibility, Performance, Spatial design, Evaluation.',['son','xr','a11y','perf','eval']],
+['Wrong','“Mastery is a strict chain of four.”','It is a partial order. Visual, Interaction and Front-end can start together; Motion needs Front-end and Interaction; Graphics needs only Front-end. See Order.',['vis','ixd','fe','mot','gfx']],
+['Wrong','“Graphics and WebGL are the end of the road.”','A branch, not the summit: much high-end work is DOM, animation and scroll with selective WebGL. The ladder 2D, time, depth, body is nested capability, not a learning order.',['gfx','xr']],
+['Partly','“The names are synonyms.”','They are not: a design engineer is a role bridging design and front-end; a creative developer leans to motion and graphics; the artifact is an interactive experience. This app models the artifact’s production.',[]],
+['Partly','“The target is Awwwards-level.”','Awwwards is a measurement (Evaluation), not the objective. The objective is Experience that achieves Intent; optimising the proxy directly is how gimmicks happen.',['eval','exp','intent']]];
+const VC={Holds:'--c3',Partly:'--c4',Wrong:'--c5'};
+const TABS=[['goal','Goal'],['parts','Parts'],['kinds','Kinds'],['borders','Borders'],['causes','Causes'],['order','Order'],['audit','Audit']];
+let tab='goal',sel=null,abl=false,ax='Stratum';
+const $=s=>document.querySelector(s),ids=Object.keys(N),nm=i=>N[i][0];
+const chip=i=>`<button class="chip${sel==i?' on':''}" style="--k:var(${COL[N[i][1]]})" data-n="${i}">${nm(i)}<small>${N[i][3]}</small></button>`;
+const legend=()=>`<div class="lg">${ST.map(s=>`<span><i style="--k:var(${COL[s]})"></i>${s}</span>`).join('')}</div>`;
+function down(s){const r=new Set([s]),q=[s];while(q.length){const a=q.pop();C.forEach(e=>{if(e[0]==a&&e[2]!='f'&&!r.has(e[1])){r.add(e[1]);q.push(e[1])}})}return r}
+function groups(key,order){const g={};ids.forEach(i=>(g[key(N[i])]??=[]).push(i));const ks=order||Object.keys(g);return `<div class="cols">${ks.map(k=>`<section><h3>${k}</h3>${(g[k]||[]).map(chip).join('')}</section>`).join('')}</div>`}
+const cut=(a,b)=>{const dx=b[5]-a[5],dy=b[6]-a[6],t=Math.min(dx?65/Math.abs(dx):1e9,dy?16/Math.abs(dy):1e9);return[a[5]+dx*t,a[6]+dy*t]};
+function svg(E,o){
+ const inn=new Set(E.flatMap(e=>[e[0],e[1]])),dead=o.dead||new Set();
+ let h=`<div class="sv"><svg viewBox="0 0 800 500" role="img" aria-label="${o.label}"><defs><marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L8 4L0 8z" fill="var(--mut)"/></marker></defs>`;
+ E.forEach(e=>{const[a,b,t,l]=e,hot=sel==a||sel==b;if(t=='k'&&!hot)return;
+  const st=hot?'var(--fg)':'var(--mut)',op=hot?1:.45;
+  if(t=='f'){h+=`<path d="M765 300H792V14H70V114" fill="none" stroke="var(--acc)" stroke-width="2" marker-end="url(#ar)"/><text class="el" x="430" y="10" text-anchor="middle" style="fill:var(--acc)">feedback: evaluation reshapes intent</text>`;return}
+  const p=cut(N[a],N[b]),q=cut(N[b],N[a]);
+  h+=`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}" stroke="${t=='k'?'var(--c5)':st}" stroke-opacity="${op}" stroke-width="${hot?2:1.3}"${t=='k'||t=='s'?' stroke-dasharray="5 4"':''}${t=='u'?'':' marker-end="url(#ar)"'}/>`;
+  if(t=='u'&&hot)h+=`<text class="el" x="${(p[0]+q[0])/2}" y="${(p[1]+q[1])/2}" text-anchor="middle">${l}</text>`});
+ ids.forEach(i=>{const n=N[i];h+=`<g class="nd${sel==i?' on':''}${dead.has(i)?' dead':''}" data-n="${i}" tabindex="0" opacity="${inn.has(i)?1:.2}"><rect x="${n[5]-65}" y="${n[6]-16}" width="130" height="32" rx="8" style="stroke:var(${COL[n[1]]})"/><text x="${n[5]}" y="${n[6]+4}" text-anchor="middle">${n[0]}</text>${o.waves&&inn.has(i)?`<text class="w" x="${n[5]+63}" y="${n[6]-20}">wave ${W[i]}</text>`:''}</g>`});
+ return h+`</svg></div>`+(o.cap||'')}
+const GOAL=`<h2>Terminal goal</h2><p class="big">A correct, navigable model of the domain, so you can decide what to learn and what to make next.</p>
+<p>Your draft defines the domain by a prize (Awwwards) and uses “domain” for three different things: the <b>artifact</b> (a site), the <b>practice</b> (the roles) and the <b>field</b> (the knowledge). Only the artifact has a causal structure you can test, so this app models how an interactive experience gets produced.</p>
+<h2>Instrumental goals</h2><table>
+<tr><td><b>1 Decompose</b></td><td>What is the whole made of?</td><td><button class="btn" data-t="parts">Parts</button></td></tr>
+<tr><td><b>2 Classify</b></td><td>How do the parts differ?</td><td><button class="btn" data-t="kinds">Kinds</button></td></tr>
+<tr><td><b>3 Relate</b></td><td>Where do parts meet and overlap?</td><td><button class="btn" data-t="borders">Borders</button></td></tr>
+<tr><td><b>4 Explain</b></td><td>What causes what, and what breaks if a part is removed?</td><td><button class="btn" data-t="causes">Causes</button></td></tr>
+<tr><td><b>5 Sequence</b></td><td>What must be learned before what?</td><td><button class="btn" data-t="order">Order</button></td></tr>
+<tr><td><b>6 Verify</b></td><td>Which claims in your draft survive?</td><td><button class="btn" data-t="audit">Audit</button></td></tr></table>
+<p class="note">Why these six: 1 to 4 are the four structural questions you asked. 5 turns structure into a decision (the “decide” in the goal). 6 is your “verify and correct”. Drop any one and the goal fails; nothing else is needed to state it. The model is my judgment, not survey data, so treat labels like “peripheral” and “optional” as claims to test.</p>`;
+function view(){
+ if(tab=='goal')return GOAL;
+ if(tab=='parts')return `<h2>Composition</h2><p class="note">Whole: an interactive experience artifact. Each box is a proper part of it, except Constraint: Accessibility and Performance are qualities every part must have, not parts. Small text is the part’s status against your draft.</p>`+groups(n=>n[1],ST)+legend();
+ if(tab=='kinds')return `<h2>Kinds</h2><p class="note">Regroup by the axis that fits your decision. Parts that share a column on one axis split on another, which is why the draft’s four “disciplines” mix kinds.</p>`+['Stratum','Modality','Vs your draft'].map(a=>`<button class="btn${ax==a?' on':''}" data-a="${a}">${a}</button>`).join('')+groups(n=>ax=='Stratum'?n[1]:ax=='Modality'?n[2]:n[3],ax=='Stratum'?ST:null);
+ if(tab=='borders')return `<h2>Borders</h2><p class="note">A line is shared ground. Select a part to read the boundary object on each of its lines. Non-overlapping disciplines would have no lines.</p>`+svg(T.map(e=>e),{label:'Overlap graph'})+`<div class="nest"><b>Dimensional nesting:</b> 2D static (Visual, Interaction) ⊂ plus time (Motion, Sonic) ⊂ plus depth (Spatial, Graphics) ⊂ plus body (Sensors, XR). Nested capability, not a learning order.</div>`;
+ if(tab=='causes'){const d=abl&&sel?down(sel):null;return `<h2>Causes</h2><p class="note">Arrows: produces input for. Dashed red: constrains (select a constraint to see). Orange: feedback.</p>`+(sel?`<button class="btn${abl?' on':''}" data-abl="1">Ablate “${nm(sel)}”</button>`:`<p class="note">Select a part, then ablate it to see what breaks.</p>`)+svg(C,{label:'Causal graph',dead:d})+(d?`<p class="note"><b>Removing ${nm(sel)} breaks or degrades ${d.size-1} downstream part(s).</b>${sel=='intent'?' The pieces still build, but nothing decides what they are for: the “empty tech demo”.':''}</p>`:'')+legend()}
+ if(tab=='order'){const g={};Object.keys(W).forEach(i=>(g[W[i]]??=[]).push(nm(i)));
+  return `<h2>Order</h2><p class="note">Solid: required first. Dashed: helps. This is a partial order, not a chain.</p>`+svg(L,{label:'Prerequisite graph',waves:1})+`<p class="note">${Object.keys(g).map(k=>`<b>Wave ${k}</b>${k==0?' (start together)':''}: ${g[k].join(', ')}`).join('<br>')}<br>Deepest path: ${Math.max(...Object.values(W))+1} stages (Front-end, Graphics, Spatial, Sensors), and only the graphics branch is that deep. Intent & narrative is learned alongside every wave, so it has no node here.</p>`}
+ return `<h2>Audit of your draft</h2><p class="note">Select a chip to inspect that part.</p>`+AUD.map(a=>`<div class="cl"><span class="v" style="background:var(${VC[a[0]]})">${a[0]}</span><b>${a[1]}</b><p>${a[2]}</p>${a[3].map(i=>`<button class="btn" data-n="${i}">${nm(i)}</button>`).join('')}</div>`).join('')}
+function panel(){
+ if(!sel)return `<p class="note" style="margin:0">Select any part. Its definition, overlaps, causes or prerequisites appear here.</p>`;
+ const n=N[sel],k=`style="--k:var(${COL[n[1]]})"`,ov=T.filter(e=>e[0]==sel||e[1]==sel).map(e=>`<li>${nm(e[0]==sel?e[1]:e[0])}: ${e[3]}</li>`).join('');
+ let h=`<h3>${n[0]}</h3><span class="bd" ${k}>${n[1]}</span><span class="bd" ${k}>${n[3]}</span><p style="margin:0 0 6px">${n[4]}</p><h4>Shares ground with</h4>${ov?`<ul>${ov}</ul>`:`<p class="note" style="margin:2px 0 8px">Nothing in particular: it cuts across every part.</p>`}`;
+ if(tab=='causes'){const i=C.filter(e=>e[1]==sel&&e[2]!='f'),o=C.filter(e=>e[0]==sel);h+=`<h4>Needs or is bound by</h4><ul>${i.map(e=>`<li>${nm(e[0])}${e[2]=='k'?' (constrains)':''}</li>`).join('')||'<li>none</li>'}</ul><h4>Feeds or constrains</h4><ul>${o.map(e=>`<li>${nm(e[1])}${e[2]=='f'?' (feedback)':''}</li>`).join('')||'<li>none</li>'}</ul>`}
+ if(tab=='order'){const r=L.filter(e=>e[1]==sel);h+=`<h4>Learning prerequisites</h4>`+(W[sel]!=null?`<ul>${r.map(e=>`<li>${nm(e[0])} (${e[2]=='h'?'required':'helps'})</li>`).join('')||'<li>none: can start now</li>'}</ul><p class="note">Wave ${W[sel]}</p>`:`<p class="note">Not a learning step.</p>`)}
+ return h}
+function render(){$('#nav').innerHTML=TABS.map(t=>`<button data-t="${t[0]}" aria-pressed="${tab==t[0]}">${t[1]}</button>`).join('');$('#v').innerHTML=view();$('#p').innerHTML=panel()}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-t],[data-n],[data-a],[data-abl]');if(!b)return;const d=b.dataset;if(d.t)tab=d.t;if(d.n)sel=d.n;if(d.a)ax=d.a;if(d.abl)abl=!abl;render()});
+document.addEventListener('keydown',e=>{if(e.key=='Enter'&&e.target.dataset&&e.target.dataset.n)e.target.dispatchEvent(new MouseEvent('click',{bubbles:true}))});
+render();
+</script></body></html>

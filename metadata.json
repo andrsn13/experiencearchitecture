@@ -1,0 +1,8 @@
+{
+  "name": "Experience Architecture",
+  "description": "An authoritative, self-demonstrating reference model of interactive experience engineering across 14 parts, 6 strata, and 4 nested dimensions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

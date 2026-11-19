@@ -1,0 +1,178 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --font-serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  /* Editorial-Architectural Light Studio (Archival Alabaster) */
+  --bg-canvas: #f7f5f0;
+  --bg-surface: #ffffff;
+  --bg-elevated: #efece6;
+  --ink-primary: #171614;
+  --ink-secondary: #484641;
+  --ink-muted: #68655e;
+  --line-hairline: rgba(23, 22, 20, 0.11);
+  --line-strong: rgba(23, 22, 20, 0.24);
+  --accent-primary: #b4431e;
+  --accent-ink: #ffffff;
+
+  /* 6 Strata Mineral Pigments (WCAG AA on Light Surface) */
+  --stratum-intent: #6d28d9;
+  --stratum-content: #9a5b06;
+  --stratum-form: #0369a1;
+  --stratum-substrate: #15803d;
+  --stratum-constraint: #be123c;
+  --stratum-outcome: #475569;
+
+  color-scheme: light;
+}
+
+.dark {
+  /* Editorial-Architectural Dark Studio (Obsidian Gallery) */
+  --bg-canvas: #111110;
+  --bg-surface: #191917;
+  --bg-elevated: #22211e;
+  --ink-primary: #f2f0ea;
+  --ink-secondary: #c9c6be;
+  --ink-muted: #9a978f;
+  --line-hairline: rgba(242, 240, 234, 0.11);
+  --line-strong: rgba(242, 240, 234, 0.26);
+  --accent-primary: #e87b54;
+  --accent-ink: #111110;
+
+  /* 6 Strata Mineral Pigments (Optical Compensation for Dark) */
+  --stratum-intent: #a78bfa;
+  --stratum-content: #fbbf24;
+  --stratum-form: #38bdf8;
+  --stratum-substrate: #4ade80;
+  --stratum-constraint: #fb7185;
+  --stratum-outcome: #94a3b8;
+
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+  font-family: var(--font-sans);
+  background-color: var(--bg-canvas);
+  color: var(--ink-primary);
+}
+
+body {
+  margin: 0;
+  background-color: var(--bg-canvas);
+  color: var(--ink-primary);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-editorial {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+}
+
+.font-mono-tech {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Dark mode optical weight compensation */
+.dark body {
+  letter-spacing: 0.006em;
+}
+
+/* Accessible Focus Ring */
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+/* Constraint: High-Contrast Semantics Audit Mode */
+.a11y-audit [role="region"],
+.a11y-audit nav,
+.a11y-audit main,
+.a11y-audit aside,
+.a11y-audit header,
+.a11y-audit footer {
+  outline: 1px dashed var(--stratum-constraint);
+  outline-offset: -2px;
+}
+
+.a11y-audit {
+  --line-hairline: var(--line-strong);
+}
+
+/* Motion Governance: Reduced Motion or Motion Ablation */
+.motion-frozen *,
+.motion-frozen *::before,
+.motion-frozen *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* Self-Referential Ablation: Visual Design Stripped */
+.ablate-visual {
+  font-family: ui-monospace, SFMono-Regular, monospace !important;
+  --bg-canvas: #ffffff !important;
+  --bg-surface: #ffffff !important;
+  --bg-elevated: #f3f3f3 !important;
+  --ink-primary: #000000 !important;
+  --ink-secondary: #222222 !important;
+  --ink-muted: #555555 !important;
+  --line-hairline: #000000 !important;
+  --accent-primary: #000000 !important;
+  --stratum-intent: #000000 !important;
+  --stratum-content: #000000 !important;
+  --stratum-form: #000000 !important;
+  --stratum-substrate: #000000 !important;
+  --stratum-constraint: #000000 !important;
+  --stratum-outcome: #000000 !important;
+}
+
+.dark .ablate-visual {
+  --bg-canvas: #000000 !important;
+  --bg-surface: #000000 !important;
+  --bg-elevated: #111111 !important;
+  --ink-primary: #ffffff !important;
+  --ink-secondary: #dddddd !important;
+  --ink-muted: #aaaaaa !important;
+  --line-hairline: #ffffff !important;
+  --accent-primary: #ffffff !important;
+  --stratum-intent: #ffffff !important;
+  --stratum-content: #ffffff !important;
+  --stratum-form: #ffffff !important;
+  --stratum-substrate: #ffffff !important;
+  --stratum-constraint: #ffffff !important;
+  --stratum-outcome: #ffffff !important;
+}
+
+.ablate-visual * {
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
