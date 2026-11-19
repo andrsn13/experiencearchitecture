@@ -12,6 +12,7 @@ import {
   groupNodesByAxis,
 } from './model';
 import { evaluateCubicBezier, sampleCurvePoints } from './motion';
+import { DESIGN_PROVENANCE } from './provenance';
 
 test('domain model preserves all 14 parts across 6 strata and 17 boundary edges', () => {
   assert.equal(NODE_IDS.length, 14);
@@ -94,4 +95,13 @@ test('cubic-bezier motion evaluator satisfies boundary and monotonicity properti
   const pts = sampleCurvePoints({ p1x: 0.16, p1y: 1, p2x: 0.3, p2y: 1 }, 20);
   assert.equal(pts.length, 21);
   assert.ok(pts[4].y > pts[4].x, 'Ease-out curve should lead linear progression early');
+});
+
+test('design provenance traces every architectural phase to an objective reference', () => {
+  assert.equal(DESIGN_PROVENANCE.length, 8);
+  for (const entry of DESIGN_PROVENANCE) {
+    assert.ok(entry.reference.length > 5);
+    assert.ok(entry.modelMapping.length > 3);
+    assert.ok(entry.rationale.length > 10);
+  }
 });

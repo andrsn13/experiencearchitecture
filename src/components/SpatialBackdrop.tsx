@@ -12,28 +12,29 @@ import {
   STRATUM_HEX_DARK,
   STRATUM_HEX_LIGHT,
   type AblationEffects,
-  type LensId,
   type NodeId,
 } from '../domain/model';
-import { ChevronDown, ChevronUp, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
-export type CameraPreset = 'studio' | 'exploded' | 'top' | 'depth';
-
-interface SpatialStageProps {
+interface SpatialBackdropProps {
   theme: 'light' | 'dark';
   selectedId: NodeId | null;
-  activeLens: LensId;
   ablation: AblationEffects;
   ablatedSet: Set<NodeId> | null;
   reducedMotion: boolean;
   frameBudgetCap: boolean;
   sensorTilt: { x: number; y: number };
+  scrollProgress: number;
+  zenOrbit: boolean;
   onSelectNode: (id: NodeId) => void;
   onRestoreAblation: () => void;
+  onExitZen: () => void;
 }
 
 const _vec3A = new THREE.Vector3();
 const _vec3B = new THREE.Vector3();
+const _splinePos = new THREE.Vector3();
+const _splineTarget = new THREE.Vector3();
 const _color = new THREE.Color();
 
 function detectSoftwareGl(): boolean {
@@ -48,112 +49,56 @@ function detectSoftwareGl(): boolean {
   return /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(gpu);
 }
 
-const CAMERA_PRESETS: Record<
-  CameraPreset,
-  { pos: [number, number, number]; target: [number, number, number]; label: string }
-> = {
-  studio: { pos: [0.4, 5.1, 10.6], target: [0, -0.35, 0], label: 'Studio' },
-  exploded: { pos: [7.8, 4.6, 8.8], target: [0, 0.1, 0], label: 'Exploded' },
-  top: { pos: [0.0, 12.2, 0.01], target: [0, 0, 0], label: 'Top Plan' },
-  depth: { pos: [-5.6, 3.2, 8.9], target: [0, -0.5, 0], label: 'Depth Rings' },
-};
-
-export const SpatialStage: React.FC<SpatialStageProps> = ({
+export const SpatialBackdrop: React.FC<SpatialBackdropProps> = ({
   theme,
   selectedId,
-  activeLens,
   ablation,
   ablatedSet,
   reducedMotion,
   frameBudgetCap,
   sensorTilt,
+  scrollProgress,
+  zenOrbit,
   onSelectNode,
   onRestoreAblation,
+  onExitZen,
 }) => {
   const mountRef = useRef<HTMLDivElement | null>(null);
-  const [cameraPreset, setCameraPreset] = useState<CameraPreset>('studio');
-  const [explodeFactor, setExplodeFactor] = useState<number>(0.25);
-  const [timeSpeed, setTimeSpeed] = useState<number>(1.0);
-  const [dockCollapsed, setDockCollapsed] = useState<boolean>(false);
-  const [contextLost, setContextLost] = useState<boolean>(false);
-  const [hoveredId, setHoveredId] = useState<NodeId | null>(null);
+  const [contextLost, setContextLost] = useState(false);
 
   const stateRef = useRef({
     theme,
     selectedId,
-    activeLens,
     ablation,
     ablatedSet,
     reducedMotion,
     frameBudgetCap,
     sensorTilt,
-    cameraPreset,
-    explodeFactor,
-    timeSpeed,
+    scrollProgress,
+    zenOrbit,
   });
-
   stateRef.current = {
     theme,
     selectedId,
-    activeLens,
     ablation,
     ablatedSet,
     reducedMotion,
     frameBudgetCap,
     sensorTilt,
-    cameraPreset,
-    explodeFactor,
-    timeSpeed,
+    scrollProgress,
+    zenOrbit,
   };
 
   const onSelectRef = useRef(onSelectNode);
   onSelectRef.current = onSelectNode;
-
-  const manualControlRef = useRef(false);
-  const cameraGoalRef = useRef<{
-    active: boolean;
-    pos: THREE.Vector3;
-    target: THREE.Vector3;
-  }>({
-    active: false,
-    pos: new THREE.Vector3(...CAMERA_PRESETS.studio.pos),
-    target: new THREE.Vector3(...CAMERA_PRESETS.studio.target),
-  });
-
-  // Trigger smooth camera preset transitions
-  useEffect(() => {
-    const presetKey = ablation.flattenSpatial ? 'top' : cameraPreset;
-    const preset = CAMERA_PRESETS[presetKey];
-    cameraGoalRef.current.pos.set(...preset.pos);
-    cameraGoalRef.current.target.set(...preset.target);
-    cameraGoalRef.current.active = true;
-    manualControlRef.current = false;
-  }, [cameraPreset, ablation.flattenSpatial]);
-
-  // Keyboard shortcut 'H' to toggle bottom dock
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (
-        e.target instanceof HTMLInputElement ||
-        e.target instanceof HTMLTextAreaElement
-      ) {
-        return;
-      }
-      if (e.key === 'h' || e.key === 'H') {
-        setDockCollapsed((prev) => !prev);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
 
   useEffect(() => {
     const container = mountRef.current;
     if (!container || ablation.suspendWebGL) return;
 
     const isSoftwareGl = detectSoftwareGl();
-    const width = container.clientWidth || 960;
-    const height = container.clientHeight || 480;
+    const width = container.clientWidth || window.innerWidth;
+    const height = container.clientHeight || window.innerHeight;
 
     let renderer: THREE.WebGLRenderer;
     try {
@@ -193,24 +138,18 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
     renderer.domElement.addEventListener('webglcontextrestored', onContextRestored);
 
     const scene = new THREE.Scene();
-    const bgHex = stateRef.current.theme === 'dark' ? 0x151513 : 0xf1eee7;
+    const bgHex = stateRef.current.theme === 'dark' ? 0x0d0d0c : 0xf5f2eb;
     scene.background = new THREE.Color(bgHex);
-    scene.fog = new THREE.FogExp2(bgHex, 0.032);
+    scene.fog = new THREE.FogExp2(bgHex, 0.036);
 
-    const camera = new THREE.PerspectiveCamera(42, width / height, 0.1, 100);
-    camera.position.set(...CAMERA_PRESETS.studio.pos);
+    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = !isSoftwareGl;
     controls.dampingFactor = 0.06;
     controls.minDistance = 4.5;
-    controls.maxDistance = 20;
-    controls.maxPolarAngle = Math.PI * 0.48;
-    controls.target.set(...CAMERA_PRESETS.studio.target);
-    controls.addEventListener('start', () => {
-      manualControlRef.current = true;
-      cameraGoalRef.current.active = false;
-    });
+    controls.maxDistance = 19;
+    controls.enabled = stateRef.current.zenOrbit;
 
     // Studio Environment Map (PMREM)
     const pmrem = new THREE.PMREMGenerator(renderer);
@@ -218,26 +157,44 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
     scene.environment = envTex;
     pmrem.dispose();
 
-    // 3-Point Architectural Lighting
-    const hemiLight = new THREE.HemisphereLight(0xeef2ff, 0x3b352d, 0.72);
+    // Three-point studio lighting
+    const hemiLight = new THREE.HemisphereLight(0xf1f5f9, 0x3b352d, 0.78);
     scene.add(hemiLight);
 
-    const keyLight = new THREE.DirectionalLight(0xfff1dc, 1.85);
+    const keyLight = new THREE.DirectionalLight(0xfff1dc, 1.8);
     keyLight.position.set(6.5, 9.5, 6.0);
     keyLight.castShadow = !isSoftwareGl;
     keyLight.shadow.mapSize.set(1024, 1024);
-    keyLight.shadow.camera.left = -8;
-    keyLight.shadow.camera.right = 8;
-    keyLight.shadow.camera.top = 8;
-    keyLight.shadow.camera.bottom = -8;
     keyLight.shadow.bias = -0.0005;
     scene.add(keyLight);
 
-    const rimLight = new THREE.DirectionalLight(0x93c5fd, 0.85);
+    const rimLight = new THREE.DirectionalLight(0x93c5fd, 0.8);
     rimLight.position.set(-7.0, 4.5, -6.5);
     scene.add(rimLight);
 
-    // Custom GLSL Time-Uniform Substrate Plane (Motion <-> Graphics Boundary Object)
+    // Scroll-Driven Camera & LookAt Spline Paths (CatmullRomCurve3 — Awwwards One-Value Rule)
+    const camPath = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-3.8, 2.35, 12.6), // t=0.00 Thesis & Intent (frames constellation in right aperture)
+      new THREE.Vector3(0.4, 4.4, 11.4),   // t=0.25 Taxonomy Strata
+      new THREE.Vector3(-4.2, 2.2, 8.8),   // t=0.50 Borders & Dimensional Rings
+      new THREE.Vector3(4.8, 3.6, 9.4),    // t=0.75 Causality & Ablation
+      new THREE.Vector3(0.0, 7.6, 7.4),    // t=1.00 Order & Provenance Ledger
+    ]);
+
+    const targetPath = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-2.6, -0.3, 0.0),
+      new THREE.Vector3(0.0, -0.2, 0.0),
+      new THREE.Vector3(-0.6, -1.2, 0.0),
+      new THREE.Vector3(0.4, -0.1, 0.0),
+      new THREE.Vector3(0.0, -0.4, 0.0),
+    ]);
+
+    const initT = Math.max(0, Math.min(1, stateRef.current.scrollProgress));
+    camPath.getPointAt(initT, camera.position);
+    targetPath.getPointAt(initT, controls.target);
+    camera.lookAt(controls.target);
+
+    // Custom GLSL Time-Uniform Substrate Plane
     const waveUniforms = {
       uTime: { value: 0 },
       uBaseColor: { value: new THREE.Color(0x1f2937) },
@@ -246,7 +203,7 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
       uFlatten: { value: 0 },
     };
 
-    const substrateGeo = new THREE.PlaneGeometry(24, 16, 48, 32);
+    const substrateGeo = new THREE.PlaneGeometry(26, 18, 48, 32);
     substrateGeo.rotateX(-Math.PI / 2);
     const substrateMat = new THREE.ShaderMaterial({
       uniforms: waveUniforms,
@@ -261,7 +218,7 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
           vUv = uv;
           vec3 pos = position;
           float d = length(pos.xz);
-          float wave = sin(d * 1.15 - uTime * 1.4) * 0.11 * (1.0 - uFlatten);
+          float wave = sin(d * 1.1 - uTime * 1.35) * 0.12 * (1.0 - uFlatten);
           pos.y += wave;
           vElevation = wave;
           gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
@@ -274,12 +231,12 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
         varying vec2 vUv;
         varying float vElevation;
         void main() {
-          vec2 grid = abs(fract(vUv * vec2(24.0, 16.0) - 0.5) - 0.5) / fwidth(vUv * vec2(24.0, 16.0));
+          vec2 grid = abs(fract(vUv * vec2(26.0, 18.0) - 0.5) - 0.5) / fwidth(vUv * vec2(26.0, 18.0));
           float line = 1.0 - min(min(grid.x, grid.y), 1.0);
-          float radial = 1.0 - smoothstep(0.15, 0.52, length(vUv - 0.5));
-          vec3 col = mix(uBaseColor, uLineColor, line * 0.45);
+          float radial = 1.0 - smoothstep(0.14, 0.52, length(vUv - 0.5));
+          vec3 col = mix(uBaseColor, uLineColor, line * 0.42);
           col = mix(col, uAccentColor, max(0.0, vElevation * 3.5) * 0.35);
-          float alpha = (line * 0.32 + 0.08) * radial;
+          float alpha = (line * 0.28 + 0.06) * radial;
           gl_FragColor = vec4(col, alpha);
         }
       `,
@@ -288,27 +245,7 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
     substrateMesh.position.y = -3.65;
     scene.add(substrateMesh);
 
-    // InstancedMesh Architectural Calibration Markers
-    const markerGeo = new THREE.BoxGeometry(0.045, 0.045, 0.045);
-    const markerMat = new THREE.MeshStandardMaterial({
-      color: 0x8c877c,
-      roughness: 0.6,
-      metalness: 0.3,
-    });
-    const markerCount = 9 * 7;
-    const markers = new THREE.InstancedMesh(markerGeo, markerMat, markerCount);
-    const dummyMat = new THREE.Matrix4();
-    let idx = 0;
-    for (let ix = -4; ix <= 4; ix++) {
-      for (let iz = -3; iz <= 3; iz++) {
-        dummyMat.makeTranslation(ix * 1.65, -3.62, iz * 1.65);
-        markers.setMatrixAt(idx++, dummyMat);
-      }
-    }
-    markers.computeBoundingSphere();
-    scene.add(markers);
-
-    // Concentric Dimensional Nesting Rings (2D Static -> Time -> Depth -> Body)
+    // Concentric Dimensional Nesting Rings
     const ringGroup = new THREE.Group();
     ringGroup.position.y = -3.55;
     scene.add(ringGroup);
@@ -321,15 +258,15 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
         roughness: 0.35,
         metalness: 0.65,
         transparent: true,
-        opacity: 0.55,
+        opacity: 0.48,
       });
       ringMats.push(rMat);
       const rMesh = new THREE.Mesh(ringGeo, rMat);
-      rMesh.position.y = tIdx * 0.035;
+      rMesh.position.y = tIdx * 0.04;
       ringGroup.add(rMesh);
     });
 
-    // Composite 4-Part Procedural Sculptures for All 14 Nodes
+    // Composite 4-Part Procedural Node Sculptures
     const sculptureGroup = new THREE.Group();
     scene.add(sculptureGroup);
 
@@ -341,7 +278,6 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
       beacon: THREE.Mesh;
       coreMat: THREE.MeshPhysicalMaterial;
       plinthMat: THREE.MeshStandardMaterial;
-      hitProxy: THREE.Mesh;
       basePos: THREE.Vector3;
       stratumIndex: number;
     }
@@ -355,7 +291,7 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
     ];
     const haloGeo = new THREE.TorusGeometry(0.48, 0.022, 10, 48);
     const beaconGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.34, 8);
-    const hitGeo = new THREE.SphereGeometry(0.62, 10, 10);
+    const hitGeo = new THREE.SphereGeometry(0.65, 10, 10);
     const hitMat = new THREE.MeshBasicMaterial({ visible: false });
 
     const sculptures = new Map<NodeId, NodeSculpture>();
@@ -374,8 +310,6 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
       });
       const plinth = new THREE.Mesh(plinthGeo, plinthMat);
       plinth.position.y = -0.34;
-      plinth.castShadow = !isSoftwareGl;
-      plinth.receiveShadow = !isSoftwareGl;
       group.add(plinth);
 
       const coreMat = new THREE.MeshPhysicalMaterial({
@@ -387,7 +321,6 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
       });
       const core = new THREE.Mesh(coreGeos[nIdx % coreGeos.length], coreMat);
       core.position.y = 0.02;
-      core.castShadow = !isSoftwareGl;
       group.add(core);
 
       const ring = new THREE.Mesh(haloGeo, plinthMat);
@@ -412,20 +345,19 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
         beacon,
         coreMat,
         plinthMat,
-        hitProxy,
         basePos: new THREE.Vector3(...node.pos3d),
         stratumIndex,
       });
     });
 
-    // Edge Lines connecting Causal & Border topology in 3D space
+    // Edge Lines connecting Topology in 3D space
     const edgeGroup = new THREE.Group();
     scene.add(edgeGroup);
 
     interface EdgeLineEntry {
       a: NodeId;
       b: NodeId;
-      kind: 'border' | 'causal' | 'constraint';
+      kind: 'border' | 'constraint';
       line: THREE.Line;
       mat: THREE.LineBasicMaterial;
       positions: Float32Array;
@@ -439,7 +371,7 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
       const mat = new THREE.LineBasicMaterial({
         color: kind === 'constraint' ? 0xbe123c : 0x78716c,
         transparent: true,
-        opacity: 0.28,
+        opacity: 0.22,
       });
       const line = new THREE.Line(geo, mat);
       edgeGroup.add(line);
@@ -451,28 +383,20 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
       addEdgeLine(e.from, e.to, 'constraint')
     );
 
-    // Raycasting for 3D Node Selection & Hover
+    // Raycasting in Zen Orbit mode
     const raycaster = new THREE.Raycaster();
     const pointerNdc = new THREE.Vector2();
-    let pointerDownPos = { x: 0, y: 0 };
+    let downPos = { x: 0, y: 0 };
 
-    const updateNdc = (ev: PointerEvent) => {
+    const onPointerDown = (ev: PointerEvent) => {
+      downPos = { x: ev.clientX, y: ev.clientY };
+    };
+    const onPointerUp = (ev: PointerEvent) => {
+      if (!stateRef.current.zenOrbit) return;
+      if (Math.hypot(ev.clientX - downPos.x, ev.clientY - downPos.y) > 6) return;
       const rect = renderer.domElement.getBoundingClientRect();
       pointerNdc.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
       pointerNdc.y = -((ev.clientY - rect.top) / rect.height) * 2 + 1;
-    };
-
-    const onPointerDown = (ev: PointerEvent) => {
-      pointerDownPos = { x: ev.clientX, y: ev.clientY };
-    };
-
-    const onPointerUp = (ev: PointerEvent) => {
-      const dist = Math.hypot(
-        ev.clientX - pointerDownPos.x,
-        ev.clientY - pointerDownPos.y
-      );
-      if (dist > 6) return; // Ignore orbit drag
-      updateNdc(ev);
       raycaster.setFromCamera(pointerNdc, camera);
       const hits = raycaster.intersectObjects(interactables, false);
       if (hits.length > 0) {
@@ -481,41 +405,19 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
       }
     };
 
-    let lastHoverRay = 0;
-    const onPointerMove = (ev: PointerEvent) => {
-      const now = performance.now();
-      if (now - lastHoverRay < 45) return;
-      lastHoverRay = now;
-      updateNdc(ev);
-      raycaster.setFromCamera(pointerNdc, camera);
-      const hits = raycaster.intersectObjects(interactables, false);
-      if (hits.length > 0) {
-        const hitId = hits[0].object.userData.nodeId as NodeId | undefined;
-        renderer.domElement.style.cursor = 'pointer';
-        if (hitId) setHoveredId(hitId);
-      } else {
-        renderer.domElement.style.cursor = 'grab';
-        setHoveredId(null);
-      }
-    };
-
     renderer.domElement.addEventListener('pointerdown', onPointerDown);
     renderer.domElement.addEventListener('pointerup', onPointerUp);
-    renderer.domElement.addEventListener('pointermove', onPointerMove);
 
-    // ResizeObserver
-    const resizeObserver = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      const w = Math.max(320, entry.contentRect.width);
-      const h = Math.max(320, entry.contentRect.height);
+    const onResize = () => {
+      const w = container.clientWidth || window.innerWidth;
+      const h = container.clientHeight || window.innerHeight;
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
-    });
-    resizeObserver.observe(container);
+      renderer.render(scene, camera);
+    };
+    window.addEventListener('resize', onResize);
 
-    // Pre-warm shaders on GPU
     if (!isSoftwareGl) {
       renderer.compile(scene, camera);
     }
@@ -562,7 +464,6 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
       const isFrozen = s.reducedMotion || s.ablation.freezeMotion;
       const dt = isFrozen ? 0 : rawDt;
 
-      // Apply Frame Budget Cap constraint live
       const targetPixelRatio =
         isSoftwareGl || s.frameBudgetCap
           ? 1
@@ -579,17 +480,16 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
         }
       }
 
-      elapsedTime += dt * s.timeSpeed;
+      elapsedTime += dt;
 
-      // Sync Light / Dark Architectural Theme
       const isDark = s.theme === 'dark';
       const targetBg = s.ablation.stripVisuals
         ? isDark
           ? 0x000000
           : 0xffffff
         : isDark
-        ? 0x151513
-        : 0xf1eee7;
+        ? 0x0d0d0c
+        : 0xf5f2eb;
       _color.setHex(targetBg);
       if (scene.background instanceof THREE.Color) {
         scene.background.lerp(_color, 0.15);
@@ -604,20 +504,27 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
       waveUniforms.uLineColor.value.setHex(isDark ? 0x57534e : 0xa8a29e);
       waveUniforms.uAccentColor.value.setHex(isDark ? 0xe87b54 : 0xb4431e);
 
-      const palette = isDark ? STRATUM_HEX_DARK : STRATUM_HEX_LIGHT;
+      controls.enabled = s.zenOrbit;
 
-      // Smooth Camera Preset & Body-Sensor Parallax
-      if (cameraGoalRef.current.active && !manualControlRef.current) {
-        const dampAlpha = isFrozen ? 1 : 1 - Math.exp(-5.5 * rawDt);
-        camera.position.lerp(cameraGoalRef.current.pos, dampAlpha);
-        controls.target.lerp(cameraGoalRef.current.target, dampAlpha);
-        if (camera.position.distanceTo(cameraGoalRef.current.pos) < 0.02) {
-          cameraGoalRef.current.active = false;
+      if (!s.zenOrbit) {
+        if (s.ablation.flattenSpatial) {
+          _splinePos.set(0, 12.6, 0.01);
+          _splineTarget.set(0, 0, 0);
+        } else {
+          const t = Math.max(0, Math.min(1, s.scrollProgress));
+          camPath.getPointAt(t, _splinePos);
+          targetPath.getPointAt(t, _splineTarget);
         }
+        const dampAlpha = isFrozen ? 1 : 1 - Math.exp(-5.2 * rawDt);
+        camera.position.lerp(_splinePos, dampAlpha);
+        controls.target.lerp(_splineTarget, dampAlpha);
+        camera.lookAt(controls.target);
+      } else {
+        controls.update();
       }
 
       // Subtle Body / Sensor Tilt applied to sculptureGroup
-      const targetRotY = s.ablation.flattenSpatial ? 0 : s.sensorTilt.x * 0.24;
+      const targetRotY = s.ablation.flattenSpatial ? 0 : s.sensorTilt.x * 0.25;
       const targetRotX = s.ablation.flattenSpatial ? 0 : s.sensorTilt.y * 0.16;
       const tiltAlpha = isFrozen ? 1 : 1 - Math.exp(-7 * rawDt);
       sculptureGroup.rotation.y = THREE.MathUtils.lerp(
@@ -631,8 +538,7 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
         tiltAlpha
       );
 
-      // Update each 4-part Node Sculpture
-      const explode = s.ablation.flattenSpatial ? 0 : s.explodeFactor;
+      const palette = isDark ? STRATUM_HEX_DARK : STRATUM_HEX_LIGHT;
       const zFlatten = s.ablation.flattenSpatial ? 0.02 : 1;
 
       sculptures.forEach((sc, id) => {
@@ -640,27 +546,23 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
         const isSelected = s.selectedId === id;
         const isDegraded = s.ablatedSet?.has(id) ?? false;
 
-        // Exploded Stratum Separation + 2D Spatial Flattening
-        const stratumShiftX = (sc.stratumIndex - 2.5) * explode * 0.65;
         const floatY = isFrozen
           ? 0
-          : Math.sin(elapsedTime * 1.15 + sc.stratumIndex * 0.9) * 0.08;
-        const targetX = sc.basePos.x + stratumShiftX;
-        const targetY =
-          (s.ablation.flattenSpatial ? 0.0 : sc.basePos.y) + floatY;
+          : Math.sin(elapsedTime * 1.1 + sc.stratumIndex * 0.9) * 0.08;
+        const targetY = (s.ablation.flattenSpatial ? 0 : sc.basePos.y) + floatY;
         const targetZ = sc.basePos.z * zFlatten;
 
         const posAlpha = isFrozen ? 1 : 1 - Math.exp(-8 * rawDt);
-        sc.group.position.x = THREE.MathUtils.lerp(sc.group.position.x, targetX, posAlpha);
+        sc.group.position.x = THREE.MathUtils.lerp(sc.group.position.x, sc.basePos.x, posAlpha);
         sc.group.position.y = THREE.MathUtils.lerp(sc.group.position.y, targetY, posAlpha);
         sc.group.position.z = THREE.MathUtils.lerp(sc.group.position.z, targetZ, posAlpha);
 
-        const targetScale = isSelected ? 1.24 : 1.0;
+        const targetScale = isSelected ? 1.25 : 1.0;
         const nextScale = THREE.MathUtils.lerp(sc.group.scale.x, targetScale, posAlpha);
         sc.group.scale.setScalar(nextScale);
 
         if (!isFrozen) {
-          sc.core.rotation.y += dt * (isSelected ? 1.1 : 0.35);
+          sc.core.rotation.y += dt * (isSelected ? 1.15 : 0.35);
           sc.ring.rotation.z += dt * (isSelected ? 0.9 : 0.25);
         }
 
@@ -673,13 +575,12 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
           : palette[node.stratum];
         sc.coreMat.color.set(hex);
         sc.coreMat.emissive.set(isSelected ? hex : '#000000');
-        sc.coreMat.emissiveIntensity = isSelected ? 0.35 : 0.0;
-        sc.coreMat.opacity = isDegraded ? 0.32 : 1.0;
+        sc.coreMat.emissiveIntensity = isSelected ? 0.38 : 0.0;
+        sc.coreMat.opacity = isDegraded ? 0.28 : 1.0;
         sc.coreMat.transparent = isDegraded;
         sc.plinthMat.color.setHex(isDark ? 0x2c2a26 : 0x57534e);
       });
 
-      // Update topological lines between moving sculptures
       edgeLines.forEach((edge) => {
         const scA = sculptures.get(edge.a);
         const scB = sculptures.get(edge.b);
@@ -697,14 +598,10 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
         edge.line.geometry.attributes.position.needsUpdate = true;
 
         const isHot = s.selectedId === edge.a || s.selectedId === edge.b;
-        edge.mat.opacity = isHot ? 0.92 : edge.kind === 'constraint' ? 0.14 : 0.24;
+        edge.mat.opacity = isHot ? 0.9 : edge.kind === 'constraint' ? 0.1 : 0.18;
         if (isHot) {
           edge.mat.color.setHex(
-            edge.kind === 'constraint'
-              ? 0xe11d48
-              : isDark
-              ? 0xe87b54
-              : 0xb4431e
+            edge.kind === 'constraint' ? 0xe11d48 : isDark ? 0xe87b54 : 0xb4431e
           );
         } else {
           edge.mat.color.setHex(
@@ -713,7 +610,6 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
         }
       });
 
-      controls.update();
       renderer.render(scene, camera);
 
       if (isSoftwareGl) {
@@ -729,10 +625,9 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
       disposed = true;
       cancelAnimationFrame(frameId);
       clearTimeout(frameId);
-      resizeObserver.disconnect();
+      window.removeEventListener('resize', onResize);
       renderer.domElement.removeEventListener('pointerdown', onPointerDown);
       renderer.domElement.removeEventListener('pointerup', onPointerUp);
-      renderer.domElement.removeEventListener('pointermove', onPointerMove);
       renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
       renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored);
       controls.dispose();
@@ -745,8 +640,6 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
       hitMat.dispose();
       substrateGeo.dispose();
       substrateMat.dispose();
-      markerGeo.dispose();
-      markerMat.dispose();
       ringMats.forEach((m) => m.dispose());
       sculptures.forEach((sc) => {
         sc.coreMat.dispose();
@@ -760,159 +653,56 @@ export const SpatialStage: React.FC<SpatialStageProps> = ({
     };
   }, [ablation.suspendWebGL]);
 
-  const activeNode = (hoveredId || selectedId)
-    ? DOMAIN_NODES[(hoveredId || selectedId)!]
-    : null;
-
-  return (
-    <section
-      id="spatial-stage"
-      aria-label="Interactive 3D Spatial Architecture Stage"
-      data-testid="spatial-stage"
-      data-camera-preset={ablation.flattenSpatial ? 'top' : cameraPreset}
-      data-selected-node={selectedId ?? 'none'}
-      className="scroll-mt-20 relative mx-auto max-w-[1280px] px-5 md:px-8"
-    >
-      <div className="relative h-[410px] w-full overflow-hidden rounded-xl border border-[var(--line-hairline)] bg-[var(--bg-surface)] md:h-[470px]">
-        {/* Suspended WebGL Fallback (when Graphics engineering is ablated or WebGL lost) */}
-        {ablation.suspendWebGL || contextLost ? (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-[var(--bg-elevated)] p-8 text-center">
+  if (ablation.suspendWebGL || contextLost) {
+    return (
+      <div
+        data-testid="spatial-backdrop"
+        className="fixed inset-0 z-0 flex items-center justify-center bg-[var(--bg-canvas)] p-8 text-center"
+      >
+        {ablation.suspendWebGL && (
+          <div className="pointer-events-auto max-w-md rounded-xl border border-[var(--line-strong)] bg-[var(--bg-surface)] p-6 shadow-sm">
             <p className="font-mono-tech text-xs uppercase tracking-widest text-[var(--ink-muted)]">
-              {ablation.suspendWebGL
-                ? 'Graphics Engineering Ablated — DOM Schematic Fallback'
-                : 'Spatial Context Suspended'}
+              Graphics Engineering Ablated
             </p>
-            <h3 className="font-editorial text-2xl font-medium text-[var(--ink-primary)]">
-              DOM Architecture Operates Independently of WebGL
-            </h3>
-            <p className="max-w-xl text-sm text-[var(--ink-secondary)]">
-              Because Graphics engineering is a specialist branch rather than a universal prerequisite, the 14-part domain model, inspection rail, and typographic hierarchy remain fully navigable without a 3D canvas.
+            <p className="mt-2 text-sm text-[var(--ink-secondary)]">
+              WebGL spatial rendering is suspended. The DOM monograph, typography, and topological schematics continue operating normally.
             </p>
-            {ablation.suspendWebGL && (
-              <button
-                type="button"
-                onClick={onRestoreAblation}
-                className="cursor-pointer inline-flex items-center gap-2 rounded-md border border-[var(--line-strong)] bg-[var(--bg-surface)] px-4 py-2 text-xs font-semibold text-[var(--ink-primary)] hover:bg-[var(--bg-canvas)]"
-              >
-                <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                Restore Graphics Engineering
-              </button>
-            )}
-          </div>
-        ) : (
-          <div ref={mountRef} className="h-full w-full" />
-        )}
-
-        {/* Minimal Top-Left Specification Readout (Non-intrusive, no backdrop-blur) */}
-        <div className="pointer-events-none absolute left-4 top-4 max-w-xs rounded-md border border-[var(--line-hairline)] bg-[var(--bg-surface)]/92 px-3.5 py-2.5">
-          <p className="font-mono-tech text-[11px] uppercase tracking-wider text-[var(--ink-muted)]">
-            {ablation.flattenSpatial
-              ? 'Spatial Ablated · 2D Projection'
-              : 'Spatial Architecture · 4 Nested Tiers'}
-          </p>
-          <p className="mt-0.5 text-sm font-semibold text-[var(--ink-primary)]">
-            {activeNode
-              ? `${activeNode.name} — ${activeNode.stratum}`
-              : 'Click any sculpture to inspect'}
-          </p>
-        </div>
-
-        {/* Collapsible Bottom Control Dock (Unified, no side clutter, no backdrop-blur) */}
-        {!ablation.suspendWebGL && (
-          <div className="absolute bottom-3 left-1/2 z-10 w-[min(900px,calc(100%-1.5rem))] -translate-x-1/2">
-            <div className="flex justify-center">
-              <button
-                type="button"
-                onClick={() => setDockCollapsed((v) => !v)}
-                aria-expanded={!dockCollapsed}
-                className="cursor-pointer inline-flex items-center gap-1.5 rounded-t-md border border-b-0 border-[var(--line-hairline)] bg-[var(--bg-surface)]/95 px-3 py-1 text-[11px] font-medium text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]"
-              >
-                {dockCollapsed ? (
-                  <>
-                    <ChevronUp className="h-3.5 w-3.5" aria-hidden="true" />
-                    Show Stage Controls
-                  </>
-                ) : (
-                  <>
-                    <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
-                    Hide Controls
-                  </>
-                )}
-              </button>
-            </div>
-
-            {!dockCollapsed && (
-              <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-lg border border-[var(--line-hairline)] bg-[var(--bg-surface)]/96 px-3.5 py-2 shadow-sm md:gap-4 md:px-4 md:py-2.5">
-                {/* Camera Framing (Spatial Design) */}
-                <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Camera framing">
-                  <span className="mr-1 hidden font-mono-tech text-[11px] uppercase tracking-wider text-[var(--ink-muted)] sm:inline">
-                    Camera
-                  </span>
-                  {(Object.keys(CAMERA_PRESETS) as CameraPreset[]).map((key) => {
-                    const active =
-                      (ablation.flattenSpatial ? 'top' : cameraPreset) === key;
-                    return (
-                      <button
-                        key={key}
-                        type="button"
-                        disabled={ablation.flattenSpatial}
-                        onClick={() => setCameraPreset(key)}
-                        className={`cursor-pointer whitespace-nowrap shrink-0 rounded px-2 py-1 text-xs font-medium transition-colors sm:px-2.5 ${
-                          active
-                            ? 'bg-[var(--ink-primary)] text-[var(--bg-canvas)]'
-                            : 'bg-[var(--bg-elevated)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
-                        } disabled:cursor-not-allowed disabled:opacity-50`}
-                      >
-                        {CAMERA_PRESETS[key].label}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Exploded Strata Slider */}
-                <label className="flex items-center gap-2 text-xs text-[var(--ink-secondary)]">
-                  <span className="font-mono-tech text-[11px] uppercase tracking-wider text-[var(--ink-muted)]">
-                    Strata Split
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={1}
-                    step={0.05}
-                    disabled={ablation.flattenSpatial}
-                    value={ablation.flattenSpatial ? 0 : explodeFactor}
-                    onChange={(e) => setExplodeFactor(parseFloat(e.target.value))}
-                    className="h-1.5 w-20 accent-[var(--accent-primary)] sm:w-24"
-                  />
-                  <span className="font-mono-tech w-8 text-right text-[11px]">
-                    {Math.round((ablation.flattenSpatial ? 0 : explodeFactor) * 100)}%
-                  </span>
-                </label>
-
-                {/* Time Uniform Speed */}
-                <label className="flex items-center gap-2 text-xs text-[var(--ink-secondary)]">
-                  <span className="font-mono-tech text-[11px] uppercase tracking-wider text-[var(--ink-muted)]">
-                    Time Uniform
-                  </span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={2}
-                    step={0.1}
-                    disabled={reducedMotion || ablation.freezeMotion}
-                    value={reducedMotion || ablation.freezeMotion ? 0 : timeSpeed}
-                    onChange={(e) => setTimeSpeed(parseFloat(e.target.value))}
-                    className="h-1.5 w-16 accent-[var(--accent-primary)] sm:w-20"
-                  />
-                  <span className="font-mono-tech w-8 text-right text-[11px]">
-                    {(reducedMotion || ablation.freezeMotion ? 0 : timeSpeed).toFixed(1)}x
-                  </span>
-                </label>
-              </div>
-            )}
+            <button
+              type="button"
+              onClick={onRestoreAblation}
+              className="cursor-pointer mt-4 inline-flex items-center gap-2 rounded-md bg-[var(--ink-primary)] px-4 py-2 text-xs font-semibold text-[var(--bg-canvas)]"
+            >
+              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+              Restore Graphics Engineering
+            </button>
           </div>
         )}
       </div>
-    </section>
+    );
+  }
+
+  return (
+    <div
+      data-testid="spatial-backdrop"
+      data-zen-orbit={zenOrbit ? 'true' : 'false'}
+      className={`fixed inset-0 ${zenOrbit ? 'z-30 pointer-events-auto' : 'z-0 pointer-events-none'}`}
+    >
+      <div ref={mountRef} className="h-full w-full" />
+
+      {zenOrbit && (
+        <div className="pointer-events-auto fixed bottom-6 left-1/2 z-40 flex -translate-x-1/2 items-center gap-4 rounded-lg border border-[var(--line-strong)] bg-[var(--bg-surface)] px-4 py-2.5 shadow-lg">
+          <span className="font-mono-tech text-xs text-[var(--ink-secondary)]">
+            Drag to orbit · Scroll to zoom · Click any sculpture to inspect
+          </span>
+          <button
+            type="button"
+            onClick={onExitZen}
+            className="cursor-pointer rounded-md bg-[var(--ink-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--bg-canvas)]"
+          >
+            Return to Monograph
+          </button>
+        </div>
+      )}
+    </div>
   );
 };

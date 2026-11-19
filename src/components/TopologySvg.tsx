@@ -58,6 +58,27 @@ export const TopologySvg: React.FC<TopologySvgProps> = ({
     });
   }
 
+  const connectedNodes = new Set<NodeId>();
+  if (selectedId) {
+    connectedNodes.add(selectedId);
+    if (mode === 'borders') {
+      BORDER_EDGES.forEach((e) => {
+        if (e.a === selectedId) connectedNodes.add(e.b);
+        if (e.b === selectedId) connectedNodes.add(e.a);
+      });
+    } else if (mode === 'causes') {
+      CAUSAL_EDGES.forEach((e) => {
+        if (e.from === selectedId) connectedNodes.add(e.to);
+        if (e.to === selectedId) connectedNodes.add(e.from);
+      });
+    } else {
+      LEARNING_EDGES.forEach((e) => {
+        if (e.from === selectedId) connectedNodes.add(e.to);
+        if (e.to === selectedId) connectedNodes.add(e.from);
+      });
+    }
+  }
+
   const labelMap: Record<TopologyMode, string> = {
     borders: 'Shared boundary objects overlap graph',
     causes: 'Directed causal and constraint dependency graph',
@@ -65,7 +86,7 @@ export const TopologySvg: React.FC<TopologySvgProps> = ({
   };
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-[var(--line-hairline)] bg-[var(--bg-surface)] p-2">
+    <div className="overflow-x-auto border border-[var(--line-hairline)] bg-[var(--bg-surface)] p-2">
       <svg
         viewBox="0 0 800 500"
         className="block h-auto w-full min-w-[660px] select-none"
@@ -129,6 +150,7 @@ export const TopologySvg: React.FC<TopologySvgProps> = ({
             const na = DOMAIN_NODES[edge.a];
             const nb = DOMAIN_NODES[edge.b];
             const hot = selectedId === edge.a || selectedId === edge.b;
+            const edgeOpacity = hot ? 0.95 : selectedId ? 0.11 : 0.34;
             const p = edgeEndpoint(na.pos2d, nb.pos2d);
             const q = edgeEndpoint(nb.pos2d, na.pos2d);
             return (
@@ -139,8 +161,8 @@ export const TopologySvg: React.FC<TopologySvgProps> = ({
                   x2={q[0]}
                   y2={q[1]}
                   stroke={hot ? 'var(--ink-primary)' : 'var(--ink-muted)'}
-                  strokeOpacity={hot ? 0.95 : 0.34}
-                  strokeWidth={hot ? 2 : 1.15}
+                  strokeOpacity={edgeOpacity}
+                  strokeWidth={hot ? 2 : 1.1}
                 />
                 {hot && (
                   <text
@@ -176,6 +198,7 @@ export const TopologySvg: React.FC<TopologySvgProps> = ({
                     d="M768 300 H792 V16 H70 V130"
                     fill="none"
                     stroke="var(--accent-primary)"
+                    strokeOpacity={selectedId ? (hot ? 0.95 : 0.24) : 0.8}
                     strokeWidth={hot ? 2.4 : 1.7}
                     markerEnd="url(#topo-arrow-hot)"
                   />
@@ -203,6 +226,7 @@ export const TopologySvg: React.FC<TopologySvgProps> = ({
             const p = edgeEndpoint(na.pos2d, nb.pos2d);
             const q = edgeEndpoint(nb.pos2d, na.pos2d);
             const isConstraint = edge.kind === 'constrains';
+            const edgeOpacity = hot ? 0.95 : selectedId ? 0.11 : 0.36;
             return (
               <line
                 key={`${edge.from}-${edge.to}`}
@@ -217,8 +241,8 @@ export const TopologySvg: React.FC<TopologySvgProps> = ({
                     ? 'var(--ink-primary)'
                     : 'var(--ink-muted)'
                 }
-                strokeOpacity={hot ? 0.95 : 0.36}
-                strokeWidth={hot ? 2 : 1.2}
+                strokeOpacity={edgeOpacity}
+                strokeWidth={hot ? 2 : 1.15}
                 strokeDasharray={isConstraint ? '5 4' : undefined}
                 markerEnd={
                   isConstraint
@@ -239,6 +263,7 @@ export const TopologySvg: React.FC<TopologySvgProps> = ({
             const nb = DOMAIN_NODES[edge.to];
             const p = edgeEndpoint(na.pos2d, nb.pos2d);
             const q = edgeEndpoint(nb.pos2d, na.pos2d);
+            const edgeOpacity = hot ? 0.95 : selectedId ? 0.11 : 0.38;
             return (
               <line
                 key={`${edge.from}-${edge.to}`}
@@ -247,8 +272,8 @@ export const TopologySvg: React.FC<TopologySvgProps> = ({
                 x2={q[0]}
                 y2={q[1]}
                 stroke={hot ? 'var(--ink-primary)' : 'var(--ink-muted)'}
-                strokeOpacity={hot ? 0.95 : 0.38}
-                strokeWidth={hot ? 2 : 1.2}
+                strokeOpacity={edgeOpacity}
+                strokeWidth={hot ? 2 : 1.15}
                 strokeDasharray={edge.strength === 'soft' ? '5 4' : undefined}
                 markerEnd={hot ? 'url(#topo-arrow-hot)' : 'url(#topo-arrow)'}
               />
@@ -262,8 +287,15 @@ export const TopologySvg: React.FC<TopologySvgProps> = ({
           const isIncluded = activeNodes.has(id);
           const isSelected = selectedId === id;
           const isDegraded = ablatedSet?.has(id) ?? false;
+          const isRelevant = !selectedId || connectedNodes.has(id);
           const colorVar = `var(${STRATUM_CSS_VAR[node.stratum]})`;
           const wave = LEARNING_WAVES[id];
+
+          const nodeOpacity = !isIncluded
+            ? 0.2
+            : isRelevant || isDegraded
+            ? 1
+            : 0.45;
 
           return (
             <g
@@ -272,7 +304,7 @@ export const TopologySvg: React.FC<TopologySvgProps> = ({
               tabIndex={0}
               aria-label={`${node.name} (${node.stratum})`}
               aria-pressed={isSelected}
-              opacity={isIncluded ? 1 : 0.22}
+              opacity={nodeOpacity}
               className="cursor-pointer outline-none"
               onClick={() => onSelect(id)}
               onMouseEnter={() => onHover?.()}
@@ -288,10 +320,10 @@ export const TopologySvg: React.FC<TopologySvgProps> = ({
                 y={y - 17}
                 width={136}
                 height={34}
-                rx={6}
+                rx={2}
                 fill={isDegraded ? 'var(--bg-elevated)' : 'var(--bg-surface)'}
                 stroke={isDegraded ? 'var(--stratum-constraint)' : colorVar}
-                strokeWidth={isSelected ? 3 : 1.4}
+                strokeWidth={isSelected ? 2.6 : 1.3}
                 strokeDasharray={isDegraded ? '4 3' : undefined}
               />
               <rect

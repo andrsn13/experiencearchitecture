@@ -164,25 +164,30 @@ export const ModalityLab: React.FC<ModalityLabProps> = ({
     <section
       id="instruments"
       aria-label="Live Modality and Constraint Instruments"
-      className="scroll-mt-20 mx-auto max-w-[1280px] border-t border-[var(--line-hairline)] px-5 py-14 md:px-8"
+      className="scroll-mt-20 mx-auto max-w-[1440px] border-t border-[var(--line-hairline)] bg-[var(--bg-canvas)] pb-16 pt-20 px-5 md:px-10"
     >
-      <div className="mb-8 flex flex-col justify-between gap-4 md:flex-row md:items-end">
-        <div>
+      <div className="mb-8 grid gap-6 lg:grid-cols-12 lg:items-end">
+        <div className="lg:col-span-7">
           <p className="font-mono-tech text-xs uppercase tracking-widest text-[var(--ink-muted)]">
-            Live Boundary Instruments
+            05B · Live Boundary Instruments
           </p>
           <h2 className="font-editorial mt-2 text-2xl font-medium tracking-tight text-[var(--ink-primary)] md:text-3xl text-balance">
             Modalities &amp; Constraints Applied Directly
           </h2>
         </div>
-        <p className="max-w-md text-sm text-[var(--ink-secondary)]">
-          Every cross-cutting discipline in the model—Motion, Sonic, Body Sensors, Accessibility, and Performance—is wired as a live instrument below.
-        </p>
+        <div className="lg:col-span-5">
+          <p className="text-sm leading-relaxed text-[var(--ink-secondary)]">
+            Every cross-cutting discipline in the model—Motion, Sonic, Body Sensors, Accessibility, and Performance—is wired as a live instrument below.
+          </p>
+          <p className="font-mono-tech mt-2 text-[11px] text-[var(--ink-muted)]">
+            Basis: Doherty Threshold (&lt;400ms feedback) · Fitts’s Law · WCAG 2.2
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {/* 1. Motion & Timeline Boundary Instrument */}
-        <div className="rounded-xl border border-[var(--line-hairline)] bg-[var(--bg-surface)] p-6">
+        <div className="border border-[var(--line-hairline)] bg-[var(--bg-surface)] p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="font-mono-tech text-xs text-[var(--ink-muted)]">
@@ -326,7 +331,7 @@ export const ModalityLab: React.FC<ModalityLabProps> = ({
         </div>
 
         {/* 2. Sonic Synthesis & Beat Sync */}
-        <div className="rounded-xl border border-[var(--line-hairline)] bg-[var(--bg-surface)] p-6">
+        <div className="border border-[var(--line-hairline)] bg-[var(--bg-surface)] p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="font-mono-tech text-xs text-[var(--ink-muted)]">
@@ -417,7 +422,7 @@ export const ModalityLab: React.FC<ModalityLabProps> = ({
         </div>
 
         {/* 3. Body & Sensor Input Rig */}
-        <div className="rounded-xl border border-[var(--line-hairline)] bg-[var(--bg-surface)] p-6">
+        <div className="border border-[var(--line-hairline)] bg-[var(--bg-surface)] p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="font-mono-tech text-xs text-[var(--ink-muted)]">
@@ -508,7 +513,7 @@ export const ModalityLab: React.FC<ModalityLabProps> = ({
         </div>
 
         {/* 4. Constraint Governors */}
-        <div className="rounded-xl border border-[var(--line-hairline)] bg-[var(--bg-surface)] p-6">
+        <div className="border border-[var(--line-hairline)] bg-[var(--bg-surface)] p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="font-mono-tech text-xs text-[var(--ink-muted)]">

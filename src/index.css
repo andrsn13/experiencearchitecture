@@ -6,19 +6,20 @@
   --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
 
-  /* Editorial-Architectural Light Studio (Archival Alabaster) */
-  --bg-canvas: #f7f5f0;
+  /* Light Studio: Archival Limestone & Vermilion (WCAG AA >= 4.5:1) */
+  --bg-canvas: #f5f2eb;
   --bg-surface: #ffffff;
-  --bg-elevated: #efece6;
-  --ink-primary: #171614;
-  --ink-secondary: #484641;
-  --ink-muted: #68655e;
-  --line-hairline: rgba(23, 22, 20, 0.11);
-  --line-strong: rgba(23, 22, 20, 0.24);
+  --bg-elevated: #eae5da;
+  --ink-primary: #141413;
+  --ink-secondary: #43413c;
+  --ink-muted: #66635c;
+  --line-hairline: rgba(20, 20, 19, 0.11);
+  --line-strong: rgba(20, 20, 19, 0.28);
+  --grid-guide: rgba(20, 20, 19, 0.045);
   --accent-primary: #b4431e;
   --accent-ink: #ffffff;
 
-  /* 6 Strata Mineral Pigments (WCAG AA on Light Surface) */
+  /* 6 Strata Mineral Pigments */
   --stratum-intent: #6d28d9;
   --stratum-content: #9a5b06;
   --stratum-form: #0369a1;
@@ -30,19 +31,20 @@
 }
 
 .dark {
-  /* Editorial-Architectural Dark Studio (Obsidian Gallery) */
-  --bg-canvas: #111110;
-  --bg-surface: #191917;
-  --bg-elevated: #22211e;
-  --ink-primary: #f2f0ea;
-  --ink-secondary: #c9c6be;
-  --ink-muted: #9a978f;
-  --line-hairline: rgba(242, 240, 234, 0.11);
-  --line-strong: rgba(242, 240, 234, 0.26);
+  /* Dark Studio: Obsidian Gallery & Amber-Vermilion */
+  --bg-canvas: #0d0d0c;
+  --bg-surface: #161614;
+  --bg-elevated: #201f1c;
+  --ink-primary: #f2efe9;
+  --ink-secondary: #cbc7be;
+  --ink-muted: #98948b;
+  --line-hairline: rgba(242, 239, 233, 0.11);
+  --line-strong: rgba(242, 239, 233, 0.28);
+  --grid-guide: rgba(242, 239, 233, 0.04);
   --accent-primary: #e87b54;
-  --accent-ink: #111110;
+  --accent-ink: #0d0d0c;
 
-  /* 6 Strata Mineral Pigments (Optical Compensation for Dark) */
+  /* 6 Strata Mineral Pigments (Dark Optical Compensation) */
   --stratum-intent: #a78bfa;
   --stratum-content: #fbbf24;
   --stratum-form: #38bdf8;
@@ -87,9 +89,18 @@ body {
   text-wrap: balance;
 }
 
-/* Dark mode optical weight compensation */
 .dark body {
   letter-spacing: 0.006em;
+}
+
+/* Visible Swiss Architectural 12-Column Grid Backdrop */
+.swiss-grid-overlay {
+  background-image: linear-gradient(
+    to right,
+    var(--grid-guide) 1px,
+    transparent 1px
+  );
+  background-size: calc(100% / 12) 100%;
 }
 
 /* Accessible Focus Ring */
@@ -100,6 +111,7 @@ body {
 
 /* Constraint: High-Contrast Semantics Audit Mode */
 .a11y-audit [role="region"],
+.a11y-audit section,
 .a11y-audit nav,
 .a11y-audit main,
 .a11y-audit aside,
@@ -146,6 +158,8 @@ body {
   --ink-secondary: #222222 !important;
   --ink-muted: #555555 !important;
   --line-hairline: #000000 !important;
+  --line-strong: #000000 !important;
+  --grid-guide: rgba(0, 0, 0, 0.14) !important;
   --accent-primary: #000000 !important;
   --stratum-intent: #000000 !important;
   --stratum-content: #000000 !important;
@@ -163,6 +177,8 @@ body {
   --ink-secondary: #dddddd !important;
   --ink-muted: #aaaaaa !important;
   --line-hairline: #ffffff !important;
+  --line-strong: #ffffff !important;
+  --grid-guide: rgba(255, 255, 255, 0.14) !important;
   --accent-primary: #ffffff !important;
   --stratum-intent: #ffffff !important;
   --stratum-content: #ffffff !important;
